@@ -13,11 +13,22 @@ import { formatDataSize, regexRules } from "@/utils";
 const parsePost = async (file: FileSystemFileHandle) => {
 	const rawText = await file.getFile().then((res) => res.text());
 	const { title, date, ...fmData } = hexo.parseMd(rawText);
+	
+	// 确保 date 是有效的 Date 对象
+	let parsedDate: Date;
+	if (date instanceof Date) {
+		parsedDate = date;
+	} else if (typeof date === 'string' && date.trim()) {
+		parsedDate = new Date(date);
+	} else {
+		parsedDate = new Date(); // 默认使用当前时间
+	}
+	
 	const post: PostModel = {
 		name: file.name,
 		path: file.name,
 		title: title,
-		date: date,
+		date: parsedDate,
 		raw: rawText,
 		md: configStore.hideFrontMatter ? fmData._content : rawText,
 		frontmatter: {
@@ -286,7 +297,11 @@ class LocalFileSystem extends AbstractFileSystem {
 		} else {
 			console.error("No hexo config found");
 		}
-		posts.sort((a, b) => (b.date || new Date()).getTime() - (a.date || new Date()).getTime());
+		posts.sort((a, b) => {
+			const dateA = a.date instanceof Date ? a.date : new Date(a.date || 0);
+			const dateB = b.date instanceof Date ? b.date : new Date(b.date || 0);
+			return dateB.getTime() - dateA.getTime();
+		});
 		return posts;
 	}
 
