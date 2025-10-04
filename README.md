@@ -36,6 +36,35 @@
 - [ ] 使用 Github 仓库
 - [ ] 更多
 
+## 部署到 GitHub Pages | Deploy to GitHub Pages
+
+### 方法一：使用 GitHub Actions（推荐）
+
+1. Fork 这个仓库到您的 GitHub 账户
+2. 在您的仓库设置中启用 GitHub Pages：
+   - 进入 Settings → Pages
+   - Source 选择 "GitHub Actions"
+3. 推送代码到 master 分支，GitHub Actions 会自动构建并部署
+4. 访问 `https://yourusername.github.io/hexo-editor/`
+
+### 方法二：手动部署
+
+```bash
+# 克隆项目
+git clone https://github.com/yourusername/hexo-editor.git
+cd hexo-editor
+
+# 安装依赖
+npm install
+
+# 构建项目
+npm run build
+
+# 部署到 gh-pages 分支
+npm install -g gh-pages
+gh-pages -d dist
+```
+
 ## 贡献 | Contribute
 
 欢迎各种各样的 PR（魔改也是可以的！）

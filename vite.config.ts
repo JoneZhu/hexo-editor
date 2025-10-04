@@ -9,6 +9,7 @@ import { NaiveUiResolver } from "unplugin-vue-components/resolvers";
 // https://vitejs.dev/config/
 
 export default defineConfig({
+	base: '/hexo-editor/', // GitHub Pages 子路径
 	build: {
 		rollupOptions: {
 			output: {
