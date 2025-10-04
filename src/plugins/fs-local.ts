@@ -252,18 +252,39 @@ class LocalFileSystem extends AbstractFileSystem {
 	async _getPostsByType(type: "post" | "draft"): Promise<PostModel[]> {
 		const posts: PostModel[] = [];
 		const { config } = await this.getHexoConfig();
+		console.log("Hexo config:", config);
 		if (config) {
-			const sourceDirectoryHandle = await this._root?.getDirectoryHandle(config.source_dir, { create: true });
-			const name = type === "post" ? "_posts" : "_drafts";
-			const postDirectoryHandle = await sourceDirectoryHandle?.getDirectoryHandle(name, { create: true });
+			try {
+				const sourceDirectoryHandle = await this._root?.getDirectoryHandle(config.source_dir, { create: false });
+				console.log("Source directory handle:", sourceDirectoryHandle);
+				if (sourceDirectoryHandle) {
+					const name = type === "post" ? "_posts" : "_drafts";
+					const postDirectoryHandle = await sourceDirectoryHandle.getDirectoryHandle(name, { create: false });
+					console.log("Post directory handle:", postDirectoryHandle);
 
-			for await (const [, value] of postDirectoryHandle!.entries()) {
-				if (value.kind === "file" && value.name.endsWith(".md")) {
-					const post = await parsePost(value);
-					post.path = `${config.source_dir}/${name}/${value.name}`;
-					posts.push(post);
+					let fileCount = 0;
+					for await (const [, value] of postDirectoryHandle.entries()) {
+						console.log("Found file:", value.name, "kind:", value.kind);
+						if (value.kind === "file" && value.name.endsWith(".md")) {
+							try {
+								const post = await parsePost(value);
+								post.path = `${config.source_dir}/${name}/${value.name}`;
+								posts.push(post);
+								fileCount++;
+							} catch (error) {
+								console.error("Error parsing post:", value.name, error);
+							}
+						}
+					}
+					console.log(`Found ${fileCount} ${type} files`);
+				} else {
+					console.error("Source directory not found:", config.source_dir);
 				}
+			} catch (error) {
+				console.error("Error accessing directories:", error);
 			}
+		} else {
+			console.error("No hexo config found");
 		}
 		posts.sort((a, b) => (b.date || new Date()).getTime() - (a.date || new Date()).getTime());
 		return posts;
@@ -352,20 +373,28 @@ class LocalFileSystem extends AbstractFileSystem {
 
 	async getPageFiles(): Promise<PostModel[]> {
 		const { config } = await this.getHexoConfig();
+		console.log("Getting page files, config:", config);
 		let posts: PostModel[] = [];
 
 		const getPage = async (dir: FileSystemDirectoryHandle, path: string) => {
 			const posts: PostModel[] = [];
+			console.log("Scanning directory:", path);
 			for await (const data of dir.entries()) {
 				const [, value] = data as [string, FileSystemDirectoryHandle | FileSystemFileHandle];
+				console.log("Found item:", value.name, "kind:", value.kind);
 				if (value.name.startsWith("_")) break;
 				if (value.kind === "directory") {
 					posts.push(...(await getPage(value, `${path}/${value.name}`)));
 				} else {
 					if (value.name.endsWith(".md")) {
-						const post = await parsePost(value);
-						post.path = `${path}/${value.name}`;
-						posts.push(post);
+						try {
+							const post = await parsePost(value);
+							post.path = `${path}/${value.name}`;
+							posts.push(post);
+							console.log("Parsed page:", value.name);
+						} catch (error) {
+							console.error("Error parsing page:", value.name, error);
+						}
 					}
 				}
 			}
@@ -373,10 +402,20 @@ class LocalFileSystem extends AbstractFileSystem {
 		};
 
 		if (config) {
-			const sourceDirectoryHandle = await this._root?.getDirectoryHandle(config.source_dir, { create: false });
-			if (sourceDirectoryHandle) {
-				posts = await getPage(sourceDirectoryHandle, config.source_dir);
+			try {
+				const sourceDirectoryHandle = await this._root?.getDirectoryHandle(config.source_dir, { create: false });
+				console.log("Source directory handle for pages:", sourceDirectoryHandle);
+				if (sourceDirectoryHandle) {
+					posts = await getPage(sourceDirectoryHandle, config.source_dir);
+					console.log(`Found ${posts.length} page files`);
+				} else {
+					console.error("Source directory not found for pages:", config.source_dir);
+				}
+			} catch (error) {
+				console.error("Error accessing source directory for pages:", error);
 			}
+		} else {
+			console.error("No config found for pages");
 		}
 
 		return posts;
